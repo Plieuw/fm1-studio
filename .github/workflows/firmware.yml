@@ -46,9 +46,22 @@ jobs:
             https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git ~/fw-AC79_AIoT_SDK
           cd ~/fw-AC79_AIoT_SDK && git sparse-checkout set cpu/wl82/tools
       - name: Firmware bouwen
-        run: sh studio-setup.sh --build
+        run: |
+          set -o pipefail
+          sh studio-setup.sh --build 2>&1 | tee build.log || {
+            # the log's end as one annotation (readable on the run's page and through the API)
+            tail -n 80 build.log | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}' > tail.txt
+            echo "::error title=build failed::$(cat tail.txt)"
+            exit 1
+          }
       - name: Tests op de pc
-        run: sh tests/run_host_tests.sh
+        run: |
+          set -o pipefail
+          sh tests/run_host_tests.sh 2>&1 | tee tests.log || {
+            grep -E "FAIL|error:|!! " tests.log | tail -n 60 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}' > tail.txt
+            echo "::error title=tests failed::$(cat tail.txt)"
+            exit 1
+          }
       - name: Installatiewebsite maken
         run: python3 web/make_site.py build/felucca.fwsc studio-${GITHUB_SHA::7} site
       - uses: actions/upload-artifact@v4
