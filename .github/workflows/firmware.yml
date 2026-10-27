@@ -58,7 +58,7 @@ jobs:
         run: |
           set -o pipefail
           sh tests/run_host_tests.sh 2>&1 | tee tests.log || {
-            grep -E "FAIL|error:|!! " tests.log | tail -n 60 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}' > tail.txt
+            grep -E "^!! |FAIL|FAILED" tests.log | grep -v "error:" | tail -n 60 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}' > tail.txt
             echo "::error title=tests failed::$(cat tail.txt)"
             exit 1
           }
