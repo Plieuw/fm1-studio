@@ -1,0 +1,25 @@
+# STUDIO: Felucca's UI test functions (tests/ui_test.c) that check Felucca's own engines, presets, sample sets and page
+# list, and so fail on this firmware by design. tests/studio_ui_check.sh runs every function of ui_test.c in order and
+# fails on any failure NOT listed here. One line: the function, then why.
+test_sound_loads               SKIP: indexes Felucca's PIANO / FLUTE / SAX sample sets (none built) and crashes there
+test_step_preview_chord_entry  plays a chord on track 1, ACID here (monophonic)
+test_midi                      #192 browses two presets on T3 within one Felucca engine; here it crosses an engine switch
+test_grid                      checks Felucca DRUM's lane names (BELL), TR909's are RIDE
+test_favorites                 filtered browsing across Felucca's DRUM and synth presets
+test_categories                checks Felucca's ANALOG preset 2 (SQR BASS) and its basses
+test_song_lanes                compares renders with Felucca's power-on sounds (song_probe.h)
+test_product_ux                HOME's page cycle (CHANNEL pages added), DIGITAL -> FM6, the PIANO sample waveform
+test_page_cycles               HOME's page cycle (CHANNEL pages added)
+test_mono_screens              counts more than 200 pages over Felucca's 13 engines (the pixels pass: 107 pages here)
+test_layer_knob_race           EDIT KNOB 1 three detents: with 3 engines it comes back to the same one
+test_edit_quick_actions        Felucca DRUM's model kits (CONGA lanes) and its kick render
+test_bpm_lock                  goes HOME > MIXER > CLOCK (CHANNEL pages in between here)
+test_browse_no_pattern         wants more than 200 loads over Felucca's presets (the checks pass: 88 here)
+test_edit_cycle                ANALOG's, FM6's and DRUM's EDIT pages
+test_sample_alert              the SAMPLE / GRAIN engines' sample alerts (not offered here)
+test_quick_layers              EDIT + white key: Felucca's engine order (FM6 2nd, DRUM last), SAMPLE's PIANO FLUTE SAX
+test_chord_page                plays a chord on track 1, ACID here (monophonic)
+test_bughunt_ui                FM6's patch undo
+test_fm6_ops                   FM6's operator pages (FM6 not built)
+test_home_tracks               HOME's page cycle (CHANNEL pages added)
+test_fm4_retired               DIGITAL -> FM6 conversion (FM6 not built: a DIGITAL sound loads as JUNO)

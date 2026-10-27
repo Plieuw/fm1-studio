@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# STUDIO: bouwt de firmware bij elke push naar main en zet de installatiewebsite op GitHub Pages:
+#   https://<jouw-gebruikersnaam>.github.io/<repo>/webapp/installer/   (open in Chrome of Edge, FM-1 via USB, Install)
+# Eenmalig nodig: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# De gebouwde firmware staat ook als download bij elke run (Actions > de run > Artifacts: fm1-studio-firmware).
+name: firmware
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Programma's
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil python3-fonttools xz-utils
+      - name: JieLi-compiler (bewaard tussen runs)
+        id: tc
+        uses: actions/cache@v4
+        with:
+          path: ~/.jieli
+          key: jieli-linux-toolchain-v1
+      - name: JieLi-compiler downloaden
+        if: steps.tc.outputs.cache-hit != 'true'
+        run: sh tools/get_toolchain.sh ~/.jieli
+      - name: AC79 SDK (bewaard tussen runs)
+        id: sdk
+        uses: actions/cache@v4
+        with:
+          path: ~/fw-AC79_AIoT_SDK
+          key: ac79-sdk-v1.2.1
+      - name: AC79 SDK ophalen
+        if: steps.sdk.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+            https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git ~/fw-AC79_AIoT_SDK
+          cd ~/fw-AC79_AIoT_SDK && git sparse-checkout set cpu/wl82/tools
+      - name: Firmware bouwen
+        run: sh studio-setup.sh --build
+      - name: Tests op de pc
+        run: sh tests/run_host_tests.sh
+      - name: Installatiewebsite maken
+        run: python3 web/make_site.py build/felucca.fwsc studio-${GITHUB_SHA::7} site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fm1-studio-firmware
+          path: build/felucca.fwsc
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}webapp/installer/
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
