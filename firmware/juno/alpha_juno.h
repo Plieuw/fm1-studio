@@ -61,6 +61,7 @@ typedef struct {
     int32_t lfo, pwm01, bend, after, modlever, mod_sens, fade_step, gain, hold;
     aj_wave_t dyn_p, dyn_s;
     const aj_wave_t *wp, *ws, *wsub; int32_t mp, ms, msub;
+    uint32_t sp_p, sp_s, sp_sub;   /* STUDIO: the waves' smallest edge spacing (wave_minsp: the fast wave_eval_n) */
     int32_t cho_buf[AJ_CHO_LEN]; uint32_t cho_w, cho_ph; int32_t cho_lpL, cho_lpR, cho_mix;
 } aj_t;
 

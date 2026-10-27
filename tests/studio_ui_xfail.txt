@@ -23,3 +23,4 @@ test_bughunt_ui                FM6's patch undo
 test_fm6_ops                   FM6's operator pages (FM6 not built)
 test_home_tracks               HOME's page cycle (CHANNEL pages added)
 test_fm4_retired               DIGITAL -> FM6 conversion (FM6 not built: a DIGITAL sound loads as JUNO)
+test_menu_tabs                 2ND CORE: Felucca has it OFF by default (bit clear), STUDIO ON (tests/studio_ui_test.c checks it)

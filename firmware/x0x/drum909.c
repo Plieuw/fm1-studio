@@ -755,14 +755,15 @@ static void d9_render_smp(d9_smp_t *s, const d9_bus_t *bus, int n)
     }
 }
 
-static float *d9_dry_r;         /* the render in progress: its right side (0: mono) */
-static float d9_pl0[DR_NUM], d9_pr0[DR_NUM];   /* each voice's pan where this block starts */
-static inline void d9_bus(d9_bus_t *b, drum909_t *d, int voice, float *dry, float *rev, float *dly)
+/* STUDIO: the render's right side and the pans where the block starts are the render's own (arguments, a struct on
+ * its stack), not statics: two kits render on the two cores at once (Felucca's 2ND CORE) */
+typedef struct { float *dry_r; float pl0[DR_NUM], pr0[DR_NUM]; } d9_st_t;
+static inline void d9_bus(d9_bus_t *b, drum909_t *d, const d9_st_t *st, int voice, float *dry, float *rev, float *dly)
 {
     b->dry = dry;
-    b->dry_r = d9_dry_r;
-    b->pl = d9_pl0[voice];                         /* the pan glides from here over this block */
-    b->pr = d9_pr0[voice];
+    b->dry_r = st ? st->dry_r : 0;
+    b->pl = st ? st->pl0[voice] : 0.0f;            /* the pan glides from here over this block */
+    b->pr = st ? st->pr0[voice] : 0.0f;
     b->dpl = d->pan_dl[voice];
     b->dpr = d->pan_dr[voice];
     b->srev = d->send_rev[voice];
@@ -771,7 +772,7 @@ static inline void d9_bus(d9_bus_t *b, drum909_t *d, int voice, float *dry, floa
     b->dly = b->sdly != 0.0f ? dly : 0;
 }
 
-static void d9_render(drum909_t *d, float *dry, float *rev, float *dly, int n)
+static void d9_render(drum909_t *d, const d9_st_t *st, float *dry, float *rev, float *dly, int n)
 {
     d9_bus_t bus;
     if (n > 256)
@@ -791,31 +792,31 @@ static void d9_render(drum909_t *d, float *dry, float *rev, float *dly, int n)
 
     /* 9W9's summing order: BD SD LT MT HT RS CP OH RD CR CH */
     if (d->bt[DR_BD].mute > 0) {
-        d9_bus(&bus, d, DR_BD, dry, rev, dly);
+        d9_bus(&bus, d, st, DR_BD, dry, rev, dly);
         d9_render_bd(&d->bt[DR_BD], nz, &bus, n);
     }
     if (d->bt[DR_SD].mute > 0) {
-        d9_bus(&bus, d, DR_SD, dry, rev, dly);
+        d9_bus(&bus, d, st, DR_SD, dry, rev, dly);
         d9_render_sd(&d->bt[DR_SD], nz, &bus, n);
     }
     for (int t = 0; t < 3; ++t)
         if (d->tom[t].mute > 0) {
-            d9_bus(&bus, d, DR_LT + t, dry, rev, dly);
+            d9_bus(&bus, d, st, DR_LT + t, dry, rev, dly);
             d9_render_tom(&d->tom[t], &d->bt[DR_LT + t], nz, &bus, n);
         }
     if (d->rim.mute > 0) {
-        d9_bus(&bus, d, DR_RS, dry, rev, dly);
+        d9_bus(&bus, d, st, DR_RS, dry, rev, dly);
         d9_render_rim(&d->rim, nz, &bus, n);
     }
     if (d->clap.mute > 0) {
-        d9_bus(&bus, d, DR_CP, dry, rev, dly);
+        d9_bus(&bus, d, st, DR_CP, dry, rev, dly);
         d9_render_clap(&d->clap, nz, &bus, n);
     }
     static const uint8_t order[4] = { DR_OH, DR_RD, DR_CR, DR_CH };
     for (int k = 0; k < 4; ++k) {
         d9_smp_t *s = &d->smp[order[k] - DR_CH];
         if (s->mute > 0) {
-            d9_bus(&bus, d, order[k], dry, rev, dly);
+            d9_bus(&bus, d, st, order[k], dry, rev, dly);
             d9_render_smp(s, &bus, n);
         }
     }
@@ -823,21 +824,20 @@ static void d9_render(drum909_t *d, float *dry, float *rev, float *dly, int n)
 
 void drum909_render(drum909_t *d, float *dry, float *rev, float *dly, int n)
 {
-    d9_dry_r = 0;
-    d9_render(d, dry, rev, dly, n);
+    d9_render(d, 0, dry, rev, dly, n);
 }
 
 void drum909_render_st(drum909_t *d, float *dry_l, float *dry_r, float *rev, float *dly, int n)
 {
-    d9_dry_r = dry_r;
+    d9_st_t st;
+    st.dry_r = dry_r;
     for (int v = 0; v < DR_NUM; ++v) {             /* every voice's pan glides, sounding or not */
-        d9_pl0[v] = d->pan_lc[v];
-        d9_pr0[v] = d->pan_rc[v];
+        st.pl0[v] = d->pan_lc[v];
+        st.pr0[v] = d->pan_rc[v];
         d->pan_dl[v] = x0x_glide_block(&d->pan_lc[v], d->pan_l[v], n > 256 ? 256 : n);
         d->pan_dr[v] = x0x_glide_block(&d->pan_rc[v], d->pan_r[v], n > 256 ? 256 : n);
     }
-    d9_render(d, dry_l, rev, dly, n);
-    d9_dry_r = 0;
+    d9_render(d, &st, dry_l, rev, dly, n);
 }
 
 void drum909_pan_settle(drum909_t *d)

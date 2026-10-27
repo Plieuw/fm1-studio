@@ -713,6 +713,12 @@ static uint64_t lock_held(void)
     const track_t *t = TSEL;
     uint32_t k, len = (uint32_t)t->p[P_SLEN], keys = fm1_in.notes & ~kb_layer;
     uint64_t m = 0;
+    /* STUDIO: recording live (REC on the track, playing), a note held after it was recorded: on any page, KNOB 1..4
+     * lock its step (the step it went into, seq.c rec_note: rh_start) instead of moving the sound or recording
+     * automation, until the key is let go. The parameters: the sound page shown last's, else HOME's (lock_id) */
+    if (!ui.menu && !ui.confirm && !ui.layer && !name_on() && !grid_on() && live_rec_sel() && t->rh_n &&
+        t->rh_start < len && t->rh_start < NSTEP)
+        return (uint64_t)1 << t->rh_start;
     if (ui.home || ui.menu || ui.confirm || ui.layer || name_on() || !song.seq_mode || cur_page()->graph != GR_ROLL ||
         !keys || detail_on())                           /* (DETAIL: its knobs are the step's own fields, sd_turn) */
         return 0;

@@ -31,6 +31,12 @@ Bij de JUNO is **CHO** (op de FX-pagina) de eigen stereo-chorus van de Juno: 0 =
 Bij de ACID: zet **ACC** in de sequencer voor accent en **SLIDE** voor glijden, net als op een echte 303.
 Bij de TR909: houd **EDIT** ingedrukt en tik een zwarte toets 1–8 om een drumpartij te muten.
 
+**Parameter locks tijdens het opnemen.** Zet REC aan en druk op PLAY. Speel een noot en **houd hem ingedrukt**: draai je
+nu aan KNOB 1–4, dan geldt die instelling **alleen voor die ene stap** (een parameter lock). Het geluid van de rest blijft
+gewoon. Laat je de toets los, dan werken de knoppen weer zoals altijd. De knoppen zijn die van de laatst gekozen
+geluidspagina (bijvoorbeeld EDIT of CHANNEL EQ), of anders die van HOME. Een lock weghalen: SEQ → STEP, houd de stap
+vast en druk op EDIT.
+
 ---
 
 ## Snelste route: alles via de browser (ook op een Chromebook)
@@ -147,11 +153,10 @@ sh tests/run_host_tests.sh
 
 ## Goed om te weten
 
-- **Nog niet op een echte FM-1 getest.** Alles is getest op de pc, met dezelfde code als in de firmware (zie hieronder),
-  maar het bouwen voor de chip en de belasting van de processor op het apparaat zie je pas bij jouw eerste build. Hapert
-  het geluid als alle vier de tracks tegelijk spelen? Zet dan MENU > SYSTEM > 2ND CORE aan, of gebruik minder JUNO-stemmen.
-- Met **2ND CORE aan**: zet niet op twee tracks tegelijk een TR909. De 909-code deelt een paar hulpwaarden tussen
-  kits, wat tikjes in de panning kan geven. Eén TR909 is prima.
+- **2ND CORE staat aan.** De FM-1 heeft twee processorkernen; deze firmware gebruikt ze allebei, zodat vier tracks met
+  JUNO, 303 en 909 tegelijk kunnen spelen. Hapert het geluid toch nog, gebruik dan minder JUNO-noten tegelijk. Je kunt de
+  tweede kern uitzetten met MENU → SYSTEM → 2ND CORE → OFF (daarna opnieuw opstarten). Bij zware belasting schakelt de
+  303 vanzelf zijn oversampling uit om ruimte te maken.
 - De **web-editor van Felucca** kent JUNO, ACID en TR909 niet. Gebruik de knoppen op de FM-1 zelf.
 - Je oude Felucca-projecten laden gewoon: een DRUM-track wordt de TR909, andere Felucca-engines worden JUNO.
 

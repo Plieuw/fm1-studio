@@ -87,6 +87,55 @@ AJ_INLINE int32_t wave_eval(const aj_wave_t *w, uint32_t ph, uint32_t inc, uint6
     }
     return sat32(v + c - mean);
 }
+/* STUDIO: wave_eval with only the edges next to ph (the neighbours of ph among the wave's edges, around the cycle):
+ * the same sum as wave_eval whenever the nonzero edges are more than 2 x inc apart (minsp, wave_minsp: then no other
+ * edge is within inc, where blep is 0 anyway), so the same samples; else wave_eval itself. A window's start of height
+ * 0 (a ramp from 0) is no edge. Saves most of the loop on the many-window waves (SAW 4: 8 windows) */
+AJ_INLINE uint32_t wave_minsp(const aj_wave_t *w)
+{
+    uint32_t pos[16], m = 0xFFFFFFFFu, k = 0;
+    for (int i = 0; i < w->n; ++i) {
+        if (!w->ramp || (w->s[i] >> 1)) pos[k++] = w->s[i];
+        pos[k++] = w->e[i];
+    }
+    if (k < 2) return 0;                                         /* (one edge: wave_eval is as cheap) */
+    for (uint32_t i = 0; i < k; ++i) {
+        uint32_t d = pos[(i + 1) % k] - pos[i];                  /* around the cycle (unsigned) */
+        if (d < m) m = d;
+    }
+    return m;
+}
+AJ_INLINE int32_t wave_edge(const aj_wave_t *w, uint32_t at, int64_t h, uint32_t ph, uint32_t inc, uint64_t rcp)
+{
+    return h ? (int32_t)((h * blep(ph - at, inc, rcp)) >> 32) : 0;
+}
+AJ_INLINE int32_t wave_eval_n(const aj_wave_t *w, uint32_t ph, uint32_t inc, uint64_t rcp, int32_t mean, uint32_t minsp)
+{
+    int n = w->n, i = 0, r = w->ramp;
+    int64_t v = 0, c = 0;
+    if (n < 2 || minsp <= 2u * inc || inc > 0x7FFFFFFFu)
+        return wave_eval(w, ph, inc, rcp, mean);
+    while (i < n && ph >= w->e[i]) ++i;                          /* the first window ending after ph */
+    if (i < n) {
+        int64_t hs = r ? (int64_t)(w->s[i] >> 1) : 0x7FFFFFFF, he = r ? (int64_t)(w->e[i] >> 1) : 0x7FFFFFFF;
+        int ip = i ? i - 1 : n - 1, in = i + 1 < n ? i + 1 : 0;
+        int64_t hp = r ? (int64_t)(w->e[ip] >> 1) : 0x7FFFFFFF, hn = r ? (int64_t)(w->s[in] >> 1) : 0x7FFFFFFF;
+        if (ph >= w->s[i]) {                                     /* inside window i: its start behind, its end ahead */
+            v = r ? (int64_t)(ph >> 1) : 0x7FFFFFFF;
+            c += wave_edge(w, w->s[i], hs, ph, inc, rcp);
+            c -= wave_edge(w, w->e[i], he, ph, inc, rcp);
+        } else {                                                 /* before it: the previous end behind, its start ahead */
+            c -= wave_edge(w, w->e[ip], hp, ph, inc, rcp);
+            c += wave_edge(w, w->s[i], hs, ph, inc, rcp);
+        }
+        (void)hn;
+    } else {                                                     /* after the last: its end behind, the first start ahead */
+        int64_t hl = r ? (int64_t)(w->e[n - 1] >> 1) : 0x7FFFFFFF, hf = r ? (int64_t)(w->s[0] >> 1) : 0x7FFFFFFF;
+        c -= wave_edge(w, w->e[n - 1], hl, ph, inc, rcp);
+        c += wave_edge(w, w->s[0], hf, ph, inc, rcp);
+    }
+    return sat32(v + c - mean);
+}
 AJ_INLINE int32_t softclip(int32_t x)                              /* x - x^3/6.75 */
 {
     const int32_t lim = 12582912;
@@ -235,6 +284,7 @@ AJ_CODE static void control(aj_t *a)
         a->dyn_s.ramp = 1; a->dyn_s.n = f ? 2 : 0; a->dyn_s.s[0] = s1; a->dyn_s.e[0] = e1; a->dyn_s.s[1] = s2; a->dyn_s.e[1] = END;
     }
     a->mp = a->wp ? wave_mean(a->wp) : 0; a->ms = a->ws ? wave_mean(a->ws) : 0; a->msub = wave_mean(a->wsub);
+    a->sp_p = a->wp ? wave_minsp(a->wp) : 0; a->sp_s = a->ws ? wave_minsp(a->ws) : 0; a->sp_sub = wave_minsp(a->wsub);
 
     int32_t bend_o16 = (int32_t)(((int64_t)a->bend * p[AJ_BENDER_RANGE] * 683) >> 10);
     int32_t lfo_dco = (int32_t)p[AJ_DCO_LFO] + (int32_t)div127((uint32_t)(a->modlever * a->mod_sens)) + (int32_t)div15((uint32_t)(a->after * p[AJ_DCO_AFTER]));
@@ -289,9 +339,9 @@ AJ_CODE static void voice_block(aj_t *a, aj_voice_t *v, int32_t *out)
     for (int n = 0; n < AJ_CTRL; ++n) {
         v->ph += v->inc; v->sph += v->sinc;
         int64_t m = 0;
-        if (a->wp) m += wave_eval(a->wp, v->ph, v->inc, v->rcp, a->mp);
-        if (a->ws) m += wave_eval(a->ws, v->ph, v->inc, v->rcp, a->ms);
-        if (gsub)  m += ((int64_t)wave_eval(a->wsub, v->sph, v->sinc, v->srcp, a->msub) * gsub) >> 15;
+        if (a->wp) m += wave_eval_n(a->wp, v->ph, v->inc, v->rcp, a->mp, a->sp_p);
+        if (a->ws) m += wave_eval_n(a->ws, v->ph, v->inc, v->rcp, a->ms, a->sp_s);
+        if (gsub)  m += ((int64_t)wave_eval_n(a->wsub, v->sph, v->sinc, v->srcp, a->msub, a->sp_sub) * gsub) >> 15;
         if (gnoi)  m += ((int64_t)(int32_t)rnd(a) * gnoi) >> 15;
         int32_t x = (int32_t)((m * G) >> 23);
         if (hp != 1) {

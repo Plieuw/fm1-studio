@@ -119,7 +119,11 @@ static void tr909_pots(const track_t *t, tr909_mem_t *tm)
 static void tr909_note_on(track_t *t, voice_t *v)
 {
     tr909_mem_t *tm = TR909_MEM(t);
+    static const int8_t LANE_V[NLANE] = {DR_BD, DR_SD, DR_CP, DR_CH, DR_OH, DR_MT, DR_RS, DR_RD};
     int voice = tr909_voice(v->note);
+    if (voice < 0)                                    /* any other note: its GM lane (eng_drum.c drum_lane folds the
+                                                       * notes outside 35..81 into 36..47, as DRUM did) */
+        voice = LANE_V[drum_lane(v->note) & (NLANE - 1u)];
     float vel = (float)v->vel * (1.0f / 96.0f);       /* a step's VEL 96: the 909 at its level */
     tr909_init(tm);
     if (voice < 0)

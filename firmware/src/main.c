@@ -186,7 +186,7 @@ static void fm1_main(void)
     master_boot();
     kb_boot_hold = 1;                         /* #137: no notes from the keys before the UI (seq.c keyboard_block) */
 #if FELUCCA_CPU2
-    if (!bootguard.failed && (ui_prefs2 & (PREF_CPU2_ON >> 16))) {
+    if (!bootguard.failed && !(ui_prefs2 & (PREF_CPU2_ON >> 16))) {   /* STUDIO: the bit is OFF (ui.c PREF_CPU2_ON) */
         /* the second core (hal/fm1_cpu1.h; fx.c mix_block hands it parts), at power-on, before the audio and
          * the timers (started later it never reaches its entry). It starts in the chip's ROM: the PC limits open
          * meanwhile. MENU > 2ND CORE OFF (the default), a crash in the last boot's first 30 s, or no answer: it is
@@ -230,8 +230,8 @@ static void fm1_main(void)
 #if FELUCCA_CPU2
         if (*(volatile uint8_t *)&fm1_c1_gave_up && !c1_told) {   /* (the ISR's) */
             c1_told = 1;                                /* (once: ON set again afterwards stays, for the next power-on) */
-            if (ui_prefs2 & (PREF_CPU2_ON >> 16)) {
-                ui_prefs2 &= (uint8_t)~(PREF_CPU2_ON >> 16);   /* core 1 misread or stopped answering on this FM-1: one
+            if (!(ui_prefs2 & (PREF_CPU2_ON >> 16))) {
+                ui_prefs2 |= (uint8_t)(PREF_CPU2_ON >> 16);    /* core 1 misread or stopped answering on this FM-1: one
                                                          * core from now on (MENU > 2ND CORE ON tries again) */
                 settings_later();
             }

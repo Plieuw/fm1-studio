@@ -203,7 +203,7 @@ fail=0
 # its power-on sounds, the web editor's tables: Felucca-WebApp does not know JUNO ACID TR909) do not apply to this firmware: run() skips them (tests/studio_ui_xfail.txt
 # says the same of ui_test.c's functions, which do run). Every other test runs and must pass.
 FELUCCA_ONLY=" phys_signed_test phys_signed_test_strict phys_test digital_test fm4_test fm4_div0_test fm6_test fm6bank_test
- fold155_test sound14_test sound15_test mod_test noise_test drum_test union_test dualcore_test chord_test detail_test step15_test
+ fold155_test sound14_test sound15_test mod_test noise_test drum_test union_test chord_test detail_test step15_test
  ui155_test v156_test motion_test project_test persistence_test backup_test editor_test editor_test_c1 midi_control_test
  audio_test click_test perform_test ui_render ui_render_fm4 ui_test_c1 ui_test_fm4 hostsim test_web.mjs "
 FELUCCA_ONLY=" $(echo $FELUCCA_ONLY) "              # (one line: the names end in a space, not a newline)
@@ -326,6 +326,8 @@ if [ -f build/gen/felucca_tables.h ]; then
     run "settings: PER1..PER4 migration, palette ids and preference preservation" "$OUT/settings_test"
     run "UI (STUDIO): ui_test.c's functions in order, Felucca-only failures listed (tests/studio_ui_xfail.txt)" \
         sh tests/studio_ui_check.sh "$CC" "$OUT"
+    $CC -w -I"$OUT" -Ibuild/gen -Ifirmware/src -Itests -o "$OUT/studio_ui_test" tests/studio_ui_test.c -lm
+    run "UI (STUDIO): a held recorded note locks its step; 2ND CORE ON by default" "$OUT/studio_ui_test"
     $CC -w -Ibuild/gen -Ifirmware/src -o "$OUT/studio_test" tests/studio_test.c -lm
     mkdir -p build/studio_demo
     run "STUDIO: the channel strip, JUNO ACID TR909, old stores; demos in build/studio_demo/" "$OUT/studio_test" build/studio_demo

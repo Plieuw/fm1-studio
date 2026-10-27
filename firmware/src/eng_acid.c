@@ -144,6 +144,12 @@ static void acid_block(track_t *t)
     acid_pot(am, BASS303_DRVTYPE, p[P_E7]);
     acid_pot(am, BASS303_SLIDE, p[P_GLIDE] ? p[P_GLIDE] : 21);
     am->b.fmul = am->fmul;
+    /* STUDIO: X0X's overload guard: the audio ISR busy above ~80 % (song.cpu_q8, audio.c), the 303 renders without its
+     * oversampling (about half its cost; a little aliasing on bright, resonant notes) until it is below ~65 % again */
+    if (song.cpu_q8 > 205u && !am->b.lite)
+        bass303_set_lite(&am->b, 1);
+    else if (song.cpu_q8 < 166u && am->b.lite)
+        bass303_set_lite(&am->b, 0);
     bass303_render(&am->b, am->f, CTL);
     for (i = 0; i < CTL; i++)
         am->f[i] *= ACID_OUT;
